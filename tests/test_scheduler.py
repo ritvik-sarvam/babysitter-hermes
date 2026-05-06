@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from unittest.mock import patch
 
@@ -9,6 +10,7 @@ from babysitter_hermes.scheduler import (
     BabysitterScheduler,
     SchedulerState,
     build_configured_hermes_dispatch,
+    configure_scheduler_file_logging,
     should_dispatch_analysis,
 )
 
@@ -71,6 +73,69 @@ def test_scheduler_run_once_dispatches_hermes_and_persists_state(tmp_path: Path)
     state_path = tmp_path / "demo" / "runs" / "entity__project__run" / "0_run_metadata" / "scheduler_state.json"
     assert state_path.exists()
     assert '"last_analyzed_step": 25' in state_path.read_text()
+
+
+def test_scheduler_logs_status_and_dispatch_progress(tmp_path: Path, caplog) -> None:
+    def status_provider(run_path: str) -> WandbStatus:
+        return WandbStatus(run_path=run_path, latest_step=25, state="running")
+
+    scheduler = BabysitterScheduler(
+        project_id="demo",
+        workdir=tmp_path,
+        run_path="entity/project/run",
+        monitor_every_steps=25,
+        terminal_states={"failed", "finished"},
+        status_provider=status_provider,
+        hermes_dispatch=lambda **kwargs: {"returncode": 0},
+    )
+
+    caplog.set_level(logging.INFO, logger="babysitter_hermes.scheduler")
+    scheduler.run_once()
+
+    messages = [record.getMessage() for record in caplog.records]
+    assert any("Fetching W&B status for entity/project/run" in message for message in messages)
+    assert any("W&B status for entity/project/run: step=25 state=running" in message for message in messages)
+    assert any("Dispatching Hermes analysis interval 1" in message for message in messages)
+    assert any("Hermes analysis interval 1 completed" in message for message in messages)
+
+
+def test_scheduler_copies_hermes_logs_into_interval_artifacts(tmp_path: Path, monkeypatch) -> None:
+    hermes_logs = tmp_path / "fake_home" / ".hermes" / "logs"
+    hermes_logs.mkdir(parents=True)
+    (hermes_logs / "agent.log").write_text("agent line\n")
+    (hermes_logs / "errors.log").write_text("error line\n")
+
+    monkeypatch.setenv("HERMES_HOME", str(tmp_path / "fake_home" / ".hermes"))
+
+    scheduler = BabysitterScheduler(
+        project_id="demo",
+        workdir=tmp_path / "artifacts",
+        run_path="entity/project/run",
+        monitor_every_steps=25,
+        terminal_states={"failed", "finished"},
+        status_provider=lambda run_path: WandbStatus(
+            run_path=run_path,
+            latest_step=25,
+            state="running",
+        ),
+        hermes_dispatch=lambda **kwargs: {"returncode": 0},
+    )
+
+    result = scheduler.run_once()
+
+    assert result.interval_dir is not None
+    copied_logs = result.interval_dir / "7_final_synthesis" / "hermes_logs"
+    assert (copied_logs / "agent.log").read_text() == "agent line\n"
+    assert (copied_logs / "errors.log").read_text() == "error line\n"
+
+
+def test_scheduler_file_logging_writes_under_workdir(tmp_path: Path) -> None:
+    log_path = configure_scheduler_file_logging(tmp_path / "scheduler.log")
+
+    logging.getLogger("babysitter_hermes.scheduler").info("file logging works")
+
+    assert log_path == tmp_path / "scheduler.log"
+    assert "file logging works" in log_path.read_text()
 
 
 def test_scheduler_does_not_advance_state_when_hermes_fails(tmp_path: Path) -> None:
@@ -167,6 +232,8 @@ run:
     ]
     assert "--max-iterations" in invocation.command
     assert "babysitter_wandb_snapshot" in invocation.prompt
+    assert run_hermes.call_args.kwargs["stream"] is True
+    assert run_hermes.call_args.kwargs["output_dir"] == tmp_path / "interval" / "7_final_synthesis" / "hermes_stream"
 
 
 def test_configured_hermes_dispatch_prompt_includes_evidence_paths(tmp_path: Path) -> None:

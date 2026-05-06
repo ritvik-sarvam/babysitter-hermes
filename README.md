@@ -124,6 +124,29 @@ chmod +x run_babysitter_hermes.sh
 ./run_babysitter_hermes.sh config.yaml
 ```
 
+The scheduler logs each W&B poll, dispatch decision, Hermes analysis interval,
+artifact directory, and sleep period. Increase verbosity with:
+
+```bash
+./run_babysitter_hermes.sh config.yaml --log-level DEBUG
+```
+
+Logs are also written into the configured `workdir`:
+
+```text
+babysitter_hermes_runs/<project_id>/0_scheduler_logs/scheduler.log
+babysitter_hermes_runs/<project_id>/runs/<run>/intervals/<interval>/7_final_synthesis/hermes_logs/
+babysitter_hermes_runs/<project_id>/runs/<run>/intervals/<interval>/7_final_synthesis/hermes_stream/
+```
+
+The interval `hermes_logs/` directory is a copy of Hermes' local `~/.hermes/logs`
+files at the time that interval finishes.
+
+During an analysis interval, Hermes stdout/stderr are streamed live to the
+terminal. The same live stream is also saved as `hermes_stream/stdout.log` and
+`hermes_stream/stderr.log`, while the final captured subprocess result is saved
+in `7_final_synthesis/hermes_result.json`.
+
 The package is self-contained; it does not require being cloned inside the old
 `optimus_training` monorepo.
 
