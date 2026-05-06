@@ -35,6 +35,9 @@ async def retrieve_kb_for_snapshot(
     for root in kb_roots or []:
         if not root.exists():
             continue
+        # TODO: Replace this shallow first-N markdown scan with symptom-tagged
+        # retrieval derived from the snapshot metrics/config so KB evidence is
+        # relevant to the observed failure mode.
         markdown_files = sorted(root.rglob("*.md"))[:top_k]
         for path in markdown_files:
             text = path.read_text(errors="replace")[:6000]

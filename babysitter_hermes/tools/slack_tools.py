@@ -18,6 +18,8 @@ def babysitter_send_slack(args: dict[str, Any], **kwargs: Any) -> str:
         return error_payload("Missing required argument: artifact_dir")
 
     severity_value = report_data.get("severity") or "info"
+    # TODO: Move report construction into the try block or validate severity
+    # explicitly so invalid tool input returns JSON instead of raising.
     report = DiagnosisReport(
         severity=Severity(severity_value),
         confidence=float(report_data.get("confidence") or 0.0),

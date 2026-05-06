@@ -12,6 +12,9 @@ TEXT_FIELDS = ("prompt", "completion", "text", "input", "output", "answer", "lab
 
 
 def babysitter_inspect_data(args: dict[str, Any], **kwargs: Any) -> str:
+    # TODO: Wrap per-file inspection in JSON error handling so malformed JSON,
+    # bad CSVs, and read failures are reported in limitations instead of
+    # escaping the Hermes tool call.
     data_paths = list_path_arg(args, "data_paths")
     max_preview_rows = int(args.get("max_preview_rows") or 50)
     summaries = []
