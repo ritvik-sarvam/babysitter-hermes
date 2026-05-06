@@ -1,0 +1,14 @@
+name: babysitter
+version: 0.1.0
+description: Hermes-native training babysitter tools for W&B, graphs, KB, logs, code, data, and Slack.
+provides_tools:
+  - babysitter_wandb_status
+  - babysitter_wandb_snapshot
+  - babysitter_render_graphs
+  - babysitter_analyze_graphs
+  - babysitter_retrieve_kb
+  - babysitter_read_logs
+  - babysitter_inspect_code
+  - babysitter_inspect_data
+  - babysitter_send_slack
+  - babysitter_save_artifact

@@ -1,0 +1,26 @@
+[project]
+name = "babysitter-hermes"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    "optim-agent",
+    "pydantic>=2.10",
+    "pyyaml>=6.0",
+    "wandb>=0.20.0",
+]
+
+[project.scripts]
+babysitter-hermes = "babysitter_hermes.scheduler:cli"
+
+[tool.uv.sources]
+optim-agent = { path = "..", editable = true }
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["babysitter_hermes*"]
+
+[tool.setuptools.package-data]
+babysitter_hermes = ["plugin/plugin.yaml", "plugin/skills/*/SKILL.md"]
