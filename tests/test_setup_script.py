@@ -21,7 +21,7 @@ def test_setup_script_installs_core_runtime_and_hermes() -> None:
 def test_setup_script_keeps_claude_default_without_other_provider_requirements() -> None:
     script = SETUP_SCRIPT.read_text()
 
-    assert "anthropic/claude-opus-4.5" in script
+    assert "anthropic/claude-opus-4-7" in script
     assert "ANTHROPIC_API_KEY" in script
     assert "WANDB_API_KEY" in script
     assert "OPENAI_API_KEY" not in script

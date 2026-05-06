@@ -4,7 +4,33 @@ import io
 import sys
 from pathlib import Path
 
-from babysitter_hermes.hermes_client import HermesInvocation, run_hermes
+from babysitter_hermes.hermes_client import (
+    HermesInvocation,
+    build_hermes_invocation,
+    run_hermes,
+)
+
+
+def test_build_hermes_invocation_uses_chat_query_cli() -> None:
+    invocation = build_hermes_invocation(
+        hermes_command="hermes",
+        prompt="diagnose this run",
+        profile="ignored-by-current-cli",
+        model="anthropic/claude-opus-4-7",
+        toolsets=["babysitter", "terminal", "web"],
+        max_iterations=80,
+    )
+
+    assert invocation.command == [
+        "hermes",
+        "chat",
+        "--model",
+        "anthropic/claude-opus-4-7",
+        "--toolsets",
+        "babysitter,terminal,web",
+        "-q",
+        "diagnose this run",
+    ]
 
 
 def test_run_hermes_streams_stdout_and_stderr_while_collecting(tmp_path: Path) -> None:

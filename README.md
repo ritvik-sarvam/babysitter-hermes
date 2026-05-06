@@ -19,7 +19,7 @@ The default model is Claude through Hermes:
 
 ```yaml
 hermes:
-  model: anthropic/claude-opus-4.5
+  model: anthropic/claude-opus-4-7
 ```
 
 Set `ANTHROPIC_API_KEY` before running, or override `hermes.model` in your config
@@ -62,7 +62,7 @@ The setup script installs or verifies:
 - This package's Python dependencies via `uv sync`.
 - Hermes Agent through the official NousResearch installer if `hermes` is missing.
 - The local `babysitter` Hermes plugin shim in `~/.hermes/plugins/babysitter`.
-- The Claude default model, `anthropic/claude-opus-4.5`.
+- The Claude default model, `anthropic/claude-opus-4-7`.
 
 If you want the interactive Hermes wizard during setup:
 
@@ -99,7 +99,7 @@ Minimal config shape:
 project_id: demo
 workdir: ./babysitter_hermes_runs
 hermes:
-  model: anthropic/claude-opus-4.5
+  model: anthropic/claude-opus-4-7
 run:
   wandb_run: entity/project/run_id
   training_code_dir: ./training-code
@@ -146,6 +146,12 @@ During an analysis interval, Hermes stdout/stderr are streamed live to the
 terminal. The same live stream is also saved as `hermes_stream/stdout.log` and
 `hermes_stream/stderr.log`, while the final captured subprocess result is saved
 in `7_final_synthesis/hermes_result.json`.
+
+Babysitter Hermes invokes Hermes in non-interactive chat mode:
+
+```bash
+hermes chat --model <model> --toolsets <toolsets> -q "<scheduler prompt>"
+```
 
 The package is self-contained; it does not require being cloned inside the old
 `optimus_training` monorepo.

@@ -221,16 +221,17 @@ run:
 
     invocation = run_hermes.call_args.args[0]
     assert result["returncode"] == 0
-    assert invocation.command[:7] == [
+    assert invocation.command[:5] == [
         "hermes",
-        "--profile",
-        "training",
+        "chat",
         "--model",
         "test-model",
         "--toolsets",
-        "babysitter",
     ]
-    assert "--max-iterations" in invocation.command
+    assert invocation.command[5] == "babysitter"
+    assert invocation.command[-2] == "-q"
+    assert "--max-iterations" not in invocation.command
+    assert "--profile" not in invocation.command
     assert "babysitter_wandb_snapshot" in invocation.prompt
     assert run_hermes.call_args.kwargs["stream"] is True
     assert run_hermes.call_args.kwargs["output_dir"] == tmp_path / "interval" / "7_final_synthesis" / "hermes_stream"

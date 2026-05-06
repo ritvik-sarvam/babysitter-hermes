@@ -4,7 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 HERMES_HOME="${HERMES_HOME:-${HOME}/.hermes}"
 HERMES_PLUGIN_DIR="${HERMES_PLUGIN_DIR:-${HERMES_HOME}/plugins/babysitter}"
-HERMES_MODEL="${HERMES_MODEL:-anthropic/claude-opus-4.5}"
+HERMES_MODEL="${HERMES_MODEL:-anthropic/claude-opus-4-7}"
 HERMES_PROFILE="${HERMES_PROFILE:-default}"
 RUN_HERMES_SETUP="${RUN_HERMES_SETUP:-0}"
 SKIP_HERMES_INSTALL="${SKIP_HERMES_INSTALL:-0}"
@@ -26,7 +26,7 @@ Options:
   -h, --help              Show this help.
 
 Environment:
-  HERMES_MODEL            Defaults to anthropic/claude-opus-4.5.
+  HERMES_MODEL            Defaults to anthropic/claude-opus-4-7.
   HERMES_PROFILE          Defaults to default.
   HERMES_HOME             Defaults to ~/.hermes.
   HERMES_PLUGIN_DIR       Defaults to ~/.hermes/plugins/babysitter.

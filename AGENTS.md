@@ -35,7 +35,7 @@ uv run babysitter-hermes --config config.yaml
 
 ## Defaults
 
-- Hermes model: `anthropic/claude-opus-4.5`.
+- Hermes model: `anthropic/claude-opus-4-7`.
 - Required runtime key for default model: `ANTHROPIC_API_KEY`.
 - Required W&B key: `WANDB_API_KEY`.
 - Slack keys are only required for `slack_mode: send`.

@@ -17,7 +17,7 @@ workdir: ./runs
 hermes:
   command: hermes
   profile: default
-  model: anthropic/claude-opus-4.5
+  model: anthropic/claude-opus-4-7
 run:
   wandb_run_file: ./wandb_run.txt
   training_code_dir: ./code
@@ -72,7 +72,7 @@ run:
 
     config = load_config(config_path)
 
-    assert config.hermes.model == "anthropic/claude-opus-4.5"
+    assert config.hermes.model == "anthropic/claude-opus-4-7"
 
 
 def test_redact_secrets_replaces_sensitive_values() -> None:

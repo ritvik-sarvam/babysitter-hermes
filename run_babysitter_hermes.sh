@@ -8,11 +8,11 @@ export SLACK_BOT_TOKEN="${SLACK_BOT_TOKEN:-}"
 export SLACK_USER_ID="${SLACK_USER_ID:-}"
 
 # Babysitter Hermes defaults to Claude via Hermes:
-#   anthropic/claude-opus-4.5
+#   anthropic/claude-opus-4-7
 export ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY:-}"
 
 # Optional model/runtime defaults.
-export ANTHROPIC_MODEL="${ANTHROPIC_MODEL:-claude-opus-4.5}"
+export ANTHROPIC_MODEL="${ANTHROPIC_MODEL:-claude-opus-4-7}"
 export HERMES_PROFILE="${HERMES_PROFILE:-default}"
 export PYTHONUNBUFFERED="${PYTHONUNBUFFERED:-1}"
 

@@ -6,7 +6,7 @@ Important reminders:
 
 - `babysitter-hermes` is standalone and uses Hermes for agentic reasoning.
 - The scheduler should stay deterministic and cheap.
-- The default Hermes model is `anthropic/claude-opus-4.5`.
+- The default Hermes model is `anthropic/claude-opus-4-7`.
 - Do not add non-Claude provider requirements to the default path.
 - Do not skip datapoints. Ask the user before dropping, filtering, or ignoring any data.
 - Do not mutate training code, configs, data, or launch state without explicit user approval.

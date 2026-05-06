@@ -28,19 +28,17 @@ def build_hermes_invocation(
     max_iterations: int | None = None,
     cwd: Path | None = None,
 ) -> HermesInvocation:
-    command = [hermes_command]
-    if profile:
-        command.extend(["--profile", profile])
+    del profile, max_iterations
+
+    command = [hermes_command, "chat"]
     if model:
         command.extend(["--model", model])
     if toolsets:
         command.extend(["--toolsets", ",".join(toolsets)])
-    if max_iterations is not None:
-        command.extend(["--max-iterations", str(max_iterations)])
     # TODO: Add a first-class Hermes plugin installation/discovery step so fresh
     # clones expose the babysitter toolset without relying on global Hermes
     # plugin state.
-    command.append(prompt)
+    command.extend(["-q", prompt])
     return HermesInvocation(command=command, prompt=prompt, cwd=cwd)
 
 

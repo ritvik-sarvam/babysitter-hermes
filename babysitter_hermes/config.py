@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field, model_validator
 class HermesConfig(BaseModel):
     command: str = "hermes"
     profile: str = "default"
-    model: str = "anthropic/claude-opus-4.5"
+    model: str = "anthropic/claude-opus-4-7"
     toolsets: list[str] = Field(default_factory=lambda: ["babysitter", "terminal", "web"])
     skill: str = "babysitter:training-babysitter"
     max_iterations: int = 80

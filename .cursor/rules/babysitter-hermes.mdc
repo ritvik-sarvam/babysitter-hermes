@@ -7,7 +7,7 @@ alwaysApply: true
 
 - This repo is standalone. Do not assume it lives inside `optimus_training`.
 - Hermes owns reasoning and subagent delegation; Python exposes deterministic tools and a cheap W&B polling scheduler.
-- Preserve the default Hermes model as `anthropic/claude-opus-4.5` unless the user explicitly changes it.
+- Preserve the default Hermes model as `anthropic/claude-opus-4-7` unless the user explicitly changes it.
 - Do not add OpenAI/OpenRouter requirements to the default setup path.
 - Never skip datapoints or silently ignore malformed data. Ask the user what to do.
 - Do not mutate training code, configs, data, launch settings, or live training state without explicit user approval.
