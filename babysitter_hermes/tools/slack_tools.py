@@ -3,8 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from babysitter.models import DiagnosisReport, Severity
-from babysitter.slack import save_slack_payload, send_slack_dm
+from babysitter_hermes.models import DiagnosisReport, Severity
+from babysitter_hermes.slack import save_slack_payload, send_slack_dm
 
 from ._common import ensure_within_artifact_dir, error_payload, ok_payload, path_arg
 

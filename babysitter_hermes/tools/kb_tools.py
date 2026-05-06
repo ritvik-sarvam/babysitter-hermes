@@ -4,8 +4,8 @@ import asyncio
 from pathlib import Path
 from typing import Any
 
-import babysitter.kb.retrieve as retrieve_module
-from babysitter.wandb_reader import load_snapshot
+import babysitter_hermes.kb_retrieve as retrieve_module
+from babysitter_hermes.wandb_reader import load_snapshot
 
 from ._common import ensure_within_artifact_dir, error_payload, list_path_arg, ok_payload, path_arg
 
@@ -31,36 +31,15 @@ def babysitter_retrieve_kb(args: dict[str, Any], **kwargs: Any) -> str:
 
     try:
         snapshot = load_snapshot(snapshot_path)
-        passages = []
-        limitations = []
-        if kb_roots:
-            original_kb_root = retrieve_module._kb_root
-            try:
-                for kb_root in kb_roots:
-                    if not kb_root.exists():
-                        limitations.append(f"KB root does not exist: {kb_root}")
-                        continue
-                    retrieve_module._kb_root = lambda root=kb_root: root
-                    passages.extend(
-                        asyncio.run(
-                            retrieve_module.retrieve_kb_for_snapshot(
-                                snapshot,
-                                top_k=top_k,
-                                tracking_dir=tracking_dir,
-                            )
-                        )
-                    )
-            finally:
-                retrieve_module._kb_root = original_kb_root
-        else:
-            passages = asyncio.run(
-                retrieve_module.retrieve_kb_for_snapshot(
-                    snapshot,
-                    top_k=top_k,
-                    tracking_dir=tracking_dir,
-                )
+        limitations = [f"KB root does not exist: {root}" for root in kb_roots if not root.exists()]
+        passages = asyncio.run(
+            retrieve_module.retrieve_kb_for_snapshot(
+                snapshot,
+                top_k=top_k,
+                kb_roots=kb_roots,
+                tracking_dir=tracking_dir,
             )
-            limitations = []
+        )
     except Exception as exc:
         return error_payload(f"KB retrieval failed: {type(exc).__name__}: {exc}")
 

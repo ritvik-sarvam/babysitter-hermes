@@ -4,9 +4,8 @@ import json
 from pathlib import Path
 from unittest.mock import patch
 
-from babysitter.models import MetricCoverage, RunSnapshot
-
 from babysitter_hermes.plugin import HANDLERS
+from babysitter_hermes.models import MetricCoverage, RunSnapshot
 from babysitter_hermes.tools import artifact_tools, code_tools, data_tools, kb_tools, log_tools, slack_tools, wandb_tools
 
 

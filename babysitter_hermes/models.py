@@ -2,9 +2,69 @@ from __future__ import annotations
 
 from datetime import datetime
 from pathlib import Path
+from enum import Enum
 from typing import Any
 
 from pydantic import BaseModel, Field
+
+
+class Severity(str, Enum):
+    INFO = "info"
+    WARNING = "warning"
+    CRITICAL = "critical"
+
+
+SEVERITY_ORDER: dict[Severity, int] = {
+    Severity.INFO: 0,
+    Severity.WARNING: 1,
+    Severity.CRITICAL: 2,
+}
+
+
+class MetricCoverage(BaseModel):
+    training_rows: int = 0
+    system_rows: int = 0
+    aligned_system_rows: int = 0
+    first_step: int | None = None
+    latest_step: int | None = None
+    warnings: list[str] = Field(default_factory=list)
+
+
+class RunSnapshot(BaseModel):
+    run_path: str
+    run_url: str | None = None
+    state: str | None = None
+    config: dict[str, Any] = Field(default_factory=dict)
+    summary: dict[str, Any] = Field(default_factory=dict)
+    training_rows: list[dict[str, Any]] = Field(default_factory=list)
+    system_rows: list[dict[str, Any]] = Field(default_factory=list)
+    aligned_system_rows: list[dict[str, Any]] = Field(default_factory=list)
+    coverage: MetricCoverage = Field(default_factory=MetricCoverage)
+
+
+class RenderedArtifacts(BaseModel):
+    full_board: Path
+    recent_board: Path
+    zoom_board: Path
+    metadata_path: Path
+    raw_snapshot_path: Path
+    latest_step: int | None = None
+    suspect_window_rows: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class DiagnosisReport(BaseModel):
+    severity: Severity = Severity.INFO
+    confidence: float = Field(default=0.0, ge=0.0, le=1.0)
+    summary: str
+    reasoning: str = ""
+    evidence: list[str] = Field(default_factory=list)
+    likely_causes: list[str] = Field(default_factory=list)
+    suspect_step_range: str | None = None
+    most_likely_first_bad_step: int | None = None
+    proposed_fixes: list[str] = Field(default_factory=list)
+    requires_user_approval: bool = False
+    cited_sources: list[str] = Field(default_factory=list)
+    created_at: datetime = Field(default_factory=datetime.now)
 
 
 class WandbStatus(BaseModel):

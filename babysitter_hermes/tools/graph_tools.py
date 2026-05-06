@@ -4,10 +4,10 @@ import asyncio
 from pathlib import Path
 from typing import Any
 
-from babysitter.diagnose import diagnose_snapshot
-from babysitter.models import RenderedArtifacts
-from babysitter.render import render_diagnosis_boards
-from babysitter.wandb_reader import load_snapshot
+from babysitter_hermes.diagnose import diagnose_snapshot
+from babysitter_hermes.models import RenderedArtifacts
+from babysitter_hermes.render import render_diagnosis_boards
+from babysitter_hermes.wandb_reader import load_snapshot
 
 from ._common import ensure_within_artifact_dir, error_payload, ok_payload, path_arg
 

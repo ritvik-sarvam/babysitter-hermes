@@ -7,14 +7,13 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from babysitter.wandb_reader import resolve_wandb_run, wait_for_wandb_run_file
-
 from .artifacts import create_interval_layout, create_run_layout, write_json
 from .config import BabysitterHermesConfig, load_config
 from .hermes_client import build_hermes_invocation, run_hermes
 from .models import SchedulerRunResult, SchedulerState, WandbStatus
 from .prompts import build_scheduler_prompt
 from .tools.wandb_tools import fetch_status
+from .wandb_reader import resolve_wandb_run, wait_for_wandb_run_file
 
 
 StatusProvider = Callable[[str], WandbStatus]
