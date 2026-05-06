@@ -59,6 +59,22 @@ run:
         load_config(config_path)
 
 
+def test_hermes_defaults_to_claude_model(tmp_path: Path) -> None:
+    config_path = tmp_path / "claude-default.yaml"
+    config_path.write_text(
+        """
+project_id: claude-default
+workdir: ./runs
+run:
+  wandb_run: entity/project/run
+"""
+    )
+
+    config = load_config(config_path)
+
+    assert config.hermes.model == "anthropic/claude-opus-4.5"
+
+
 def test_redact_secrets_replaces_sensitive_values() -> None:
     redacted = redact_secrets(
         {
