@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class HermesConfig(BaseModel):
@@ -16,6 +16,31 @@ class HermesConfig(BaseModel):
     max_iterations: int = 80
 
 
+class TrainingLaunchConfig(BaseModel):
+    enabled: bool = False
+    backend: str = "none"
+    session_name: str | None = None
+    working_dir: Path | None = None
+    script_path: Path | None = None
+    skip_if_session_exists: bool = True
+    extra_env: dict[str, str] = Field(default_factory=dict)
+
+    @field_validator("backend")
+    @classmethod
+    def validate_backend(cls, value: str) -> str:
+        if value not in {"none", "tmux"}:
+            raise ValueError("launch.backend must be one of: none, tmux.")
+        return value
+
+    @model_validator(mode="after")
+    def validate_script_for_tmux(self) -> "TrainingLaunchConfig":
+        if self.enabled and self.backend == "none":
+            self.backend = "tmux"
+        if self.backend == "tmux" and self.script_path is None:
+            raise ValueError("run.launch.script_path is required when launch backend is tmux.")
+        return self
+
+
 class RunConfig(BaseModel):
     wandb_run: str | None = None
     wandb_run_file: Path | None = None
@@ -24,7 +49,7 @@ class RunConfig(BaseModel):
     kb_roots: list[Path] = Field(default_factory=list)
     log_paths: list[Path] = Field(default_factory=list)
     data_paths: list[Path] = Field(default_factory=list)
-    launch: dict[str, Any] = Field(default_factory=dict)
+    launch: TrainingLaunchConfig = Field(default_factory=TrainingLaunchConfig)
 
     @model_validator(mode="after")
     def validate_wandb_source(self) -> "RunConfig":
@@ -69,6 +94,12 @@ class AnalysisConfig(BaseModel):
     limits: AnalysisLimits = Field(default_factory=AnalysisLimits)
 
 
+class TriageConfig(BaseModel):
+    enabled: bool = True
+    model: str = "anthropic/claude-opus-4-7"
+    max_tokens: int = 1200
+
+
 class BabysitterHermesConfig(BaseModel):
     project_id: str
     workdir: Path
@@ -77,6 +108,7 @@ class BabysitterHermesConfig(BaseModel):
     monitor: MonitorConfig = Field(default_factory=MonitorConfig)
     notifications: NotificationConfig = Field(default_factory=NotificationConfig)
     analysis: AnalysisConfig = Field(default_factory=AnalysisConfig)
+    triage: TriageConfig = Field(default_factory=TriageConfig)
 
     def resolve_paths(self, base_dir: Path) -> "BabysitterHermesConfig":
         self.workdir = _resolve_path(self.workdir, base_dir)
@@ -87,6 +119,10 @@ class BabysitterHermesConfig(BaseModel):
         self.run.kb_roots = [_resolve_path(path, base_dir) for path in self.run.kb_roots]
         self.run.log_paths = [_resolve_path(path, base_dir) for path in self.run.log_paths]
         self.run.data_paths = [_resolve_path(path, base_dir) for path in self.run.data_paths]
+        if self.run.launch.script_path is not None:
+            self.run.launch.script_path = _resolve_path(self.run.launch.script_path, base_dir)
+        if self.run.launch.working_dir is not None:
+            self.run.launch.working_dir = _resolve_path(self.run.launch.working_dir, base_dir)
         return self
 
     def redacted_dict(self) -> dict[str, Any]:

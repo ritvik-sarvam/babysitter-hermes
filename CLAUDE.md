@@ -6,11 +6,13 @@ Do not assume it is installed inside `optimus_training`.
 ## How To Work Here
 
 - Read `AGENTS.md` first for the project flow and invariants.
-- Prefer small, focused changes with tests for scheduler, config, prompts, and tools.
+- Prefer small, focused changes with tests for scheduler, config, triage, launcher, prompts, and tools.
 - Preserve Claude as the default Hermes model unless the user explicitly asks to change it.
 - Do not add OpenAI/OpenRouter requirements for the default path.
 - Do not skip datapoints or silently ignore malformed data. Ask the user what to do.
 - Do not implement mutations to training code, configs, data, or launch state without user approval.
+- Training launch is Python-controlled tmux execution of a user-provided bash script; Hermes should not launch training.
+- Claude triage gates escalation: healthy sends no message, non-healthy sends a message, needs_action invokes Hermes.
 
 ## Verification
 
@@ -24,7 +26,10 @@ For machine setup, use `./setup_babysitter_hermes.sh`.
 ## Key Files
 
 - `babysitter_hermes/config.py`: config schema and path resolution.
-- `babysitter_hermes/scheduler.py`: cheap polling and Hermes dispatch.
+- `babysitter_hermes/training_launch.py`: tmux launch wrapper.
+- `babysitter_hermes/evidence.py`: W&B, graph, and log evidence bundle.
+- `babysitter_hermes/triage.py`: Claude first-pass health classification.
+- `babysitter_hermes/scheduler.py`: cheap polling, triage, notification, and Hermes escalation.
 - `babysitter_hermes/prompts.py`: agent prompt contracts.
 - `babysitter_hermes/tools/`: Hermes tool implementations.
 - `babysitter_hermes/plugin/skills/training-babysitter/SKILL.md`: Hermes-facing skill.

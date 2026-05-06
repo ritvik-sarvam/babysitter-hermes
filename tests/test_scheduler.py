@@ -5,11 +5,12 @@ from pathlib import Path
 from unittest.mock import patch
 
 from babysitter_hermes.config import load_config
-from babysitter_hermes.models import WandbStatus
+from babysitter_hermes.models import ClaudeTriageDecision, TriageStatus, WandbStatus
 from babysitter_hermes.scheduler import (
     BabysitterScheduler,
     SchedulerState,
     build_configured_hermes_dispatch,
+    safe_run_url,
     configure_scheduler_file_logging,
     should_dispatch_analysis,
 )
@@ -73,6 +74,106 @@ def test_scheduler_run_once_dispatches_hermes_and_persists_state(tmp_path: Path)
     state_path = tmp_path / "demo" / "runs" / "entity__project__run" / "0_run_metadata" / "scheduler_state.json"
     assert state_path.exists()
     assert '"last_analyzed_step": 25' in state_path.read_text()
+
+
+def test_scheduler_skips_notification_and_hermes_when_triage_is_healthy(tmp_path: Path) -> None:
+    notifications = []
+    hermes_calls = []
+
+    scheduler = BabysitterScheduler(
+        project_id="demo",
+        workdir=tmp_path,
+        run_path="entity/project/run",
+        monitor_every_steps=25,
+        terminal_states={"failed", "finished"},
+        status_provider=lambda run_path: WandbStatus(
+            run_path=run_path,
+            latest_step=25,
+            state="running",
+        ),
+        evidence_collector=lambda **kwargs: {"ok": True},
+        triage_runner=lambda **kwargs: ClaudeTriageDecision(
+            status=TriageStatus.HEALTHY,
+            needs_action=False,
+            confidence=0.9,
+            summary="Healthy.",
+        ),
+        notifier=lambda **kwargs: notifications.append(kwargs),
+        hermes_dispatch=lambda **kwargs: hermes_calls.append(kwargs) or {"returncode": 0},
+    )
+
+    result = scheduler.run_once()
+
+    assert result.dispatched is True
+    assert notifications == []
+    assert hermes_calls == []
+    assert scheduler.state.last_analyzed_step == 25
+
+
+def test_scheduler_notifies_but_does_not_run_hermes_for_suspicious_triage(tmp_path: Path) -> None:
+    notifications = []
+    hermes_calls = []
+
+    scheduler = BabysitterScheduler(
+        project_id="demo",
+        workdir=tmp_path,
+        run_path="entity/project/run",
+        monitor_every_steps=25,
+        terminal_states={"failed", "finished"},
+        status_provider=lambda run_path: WandbStatus(
+            run_path=run_path,
+            latest_step=25,
+            state="running",
+        ),
+        evidence_collector=lambda **kwargs: {"ok": True},
+        triage_runner=lambda **kwargs: ClaudeTriageDecision(
+            status=TriageStatus.SUSPICIOUS,
+            needs_action=False,
+            confidence=0.7,
+            summary="Loss is unstable.",
+            questions_for_user=["Should I keep watching before escalating?"],
+        ),
+        notifier=lambda **kwargs: notifications.append(kwargs),
+        hermes_dispatch=lambda **kwargs: hermes_calls.append(kwargs) or {"returncode": 0},
+    )
+
+    scheduler.run_once()
+
+    assert len(notifications) == 1
+    assert notifications[0]["decision"].status == TriageStatus.SUSPICIOUS
+    assert hermes_calls == []
+
+
+def test_scheduler_notifies_and_runs_hermes_for_needs_action_triage(tmp_path: Path) -> None:
+    notifications = []
+    hermes_calls = []
+
+    scheduler = BabysitterScheduler(
+        project_id="demo",
+        workdir=tmp_path,
+        run_path="entity/project/run",
+        monitor_every_steps=25,
+        terminal_states={"failed", "finished"},
+        status_provider=lambda run_path: WandbStatus(
+            run_path=run_path,
+            latest_step=25,
+            state="running",
+        ),
+        evidence_collector=lambda **kwargs: {"ok": True},
+        triage_runner=lambda **kwargs: ClaudeTriageDecision(
+            status=TriageStatus.NEEDS_ACTION,
+            needs_action=True,
+            confidence=0.8,
+            summary="Loss is NaN.",
+        ),
+        notifier=lambda **kwargs: notifications.append(kwargs),
+        hermes_dispatch=lambda **kwargs: hermes_calls.append(kwargs) or {"returncode": 0},
+    )
+
+    scheduler.run_once()
+
+    assert len(notifications) == 1
+    assert len(hermes_calls) == 1
 
 
 def test_scheduler_logs_status_and_dispatch_progress(tmp_path: Path, caplog) -> None:
@@ -164,6 +265,8 @@ def test_scheduler_does_not_advance_state_when_hermes_fails(tmp_path: Path) -> N
 
 
 def test_scheduler_records_status_fetch_errors_without_raising(tmp_path: Path) -> None:
+    notifications = []
+
     def status_provider(run_path: str) -> WandbStatus:
         raise RuntimeError("network down")
 
@@ -174,6 +277,7 @@ def test_scheduler_records_status_fetch_errors_without_raising(tmp_path: Path) -
         monitor_every_steps=25,
         terminal_states={"failed", "finished"},
         status_provider=status_provider,
+        notifier=lambda **kwargs: notifications.append(kwargs),
         hermes_dispatch=lambda **kwargs: {"returncode": 0},
     )
 
@@ -181,6 +285,8 @@ def test_scheduler_records_status_fetch_errors_without_raising(tmp_path: Path) -
 
     assert result.dispatched is False
     assert result.error == "W&B status fetch raised RuntimeError: network down"
+    assert len(notifications) == 1
+    assert notifications[0]["decision"].status == TriageStatus.ERROR
     assert (
         tmp_path
         / "demo"
@@ -189,6 +295,167 @@ def test_scheduler_records_status_fetch_errors_without_raising(tmp_path: Path) -
         / "0_run_metadata"
         / "latest_status_error.json"
     ).exists()
+
+
+def test_scheduler_notifies_when_evidence_collection_fails(tmp_path: Path) -> None:
+    notifications = []
+    hermes_calls = []
+
+    def evidence_collector(**kwargs):
+        raise RuntimeError("snapshot unavailable")
+
+    scheduler = BabysitterScheduler(
+        project_id="demo",
+        workdir=tmp_path,
+        run_path="entity/project/run",
+        monitor_every_steps=25,
+        terminal_states={"failed", "finished"},
+        status_provider=lambda run_path: WandbStatus(
+            run_path=run_path,
+            latest_step=25,
+            state="running",
+        ),
+        evidence_collector=evidence_collector,
+        notifier=lambda **kwargs: notifications.append(kwargs),
+        hermes_dispatch=lambda **kwargs: hermes_calls.append(kwargs) or {"returncode": 0},
+    )
+
+    result = scheduler.run_once()
+
+    assert result.error == "Evidence collection raised RuntimeError: snapshot unavailable"
+    assert len(notifications) == 1
+    assert notifications[0]["decision"].status == TriageStatus.ERROR
+    assert hermes_calls == []
+    assert scheduler.state.last_analyzed_step is None
+
+
+def test_scheduler_notifies_when_claude_triage_fails(tmp_path: Path) -> None:
+    notifications = []
+    hermes_calls = []
+
+    def triage_runner(**kwargs):
+        raise ValueError("bad tool output")
+
+    scheduler = BabysitterScheduler(
+        project_id="demo",
+        workdir=tmp_path,
+        run_path="entity/project/run",
+        monitor_every_steps=25,
+        terminal_states={"failed", "finished"},
+        status_provider=lambda run_path: WandbStatus(
+            run_path=run_path,
+            latest_step=25,
+            state="running",
+        ),
+        evidence_collector=lambda **kwargs: {"ok": True},
+        triage_runner=triage_runner,
+        notifier=lambda **kwargs: notifications.append(kwargs),
+        hermes_dispatch=lambda **kwargs: hermes_calls.append(kwargs) or {"returncode": 0},
+    )
+
+    result = scheduler.run_once()
+
+    assert result.error == "Claude triage raised ValueError: bad tool output"
+    assert len(notifications) == 1
+    assert notifications[0]["decision"].status == TriageStatus.ERROR
+    assert hermes_calls == []
+    assert scheduler.state.last_analyzed_step is None
+
+
+def test_scheduler_notifies_for_error_and_unknown_triage_without_hermes(tmp_path: Path) -> None:
+    for status_value in [TriageStatus.ERROR, TriageStatus.UNKNOWN]:
+        notifications = []
+        hermes_calls = []
+        scheduler = BabysitterScheduler(
+            project_id="demo",
+            workdir=tmp_path / status_value.value,
+            run_path="entity/project/run",
+            monitor_every_steps=25,
+            terminal_states={"failed", "finished"},
+            status_provider=lambda run_path: WandbStatus(
+                run_path=run_path,
+                latest_step=25,
+                state="running",
+            ),
+            evidence_collector=lambda **kwargs: {"ok": True},
+            triage_runner=lambda **kwargs: ClaudeTriageDecision(
+                status=status_value,
+                needs_action=False,
+                confidence=0.1,
+                summary="Could not trust all evidence.",
+                questions_for_user=["What should I do about missing evidence?"],
+            ),
+            notifier=lambda **kwargs: notifications.append(kwargs),
+            hermes_dispatch=lambda **kwargs: hermes_calls.append(kwargs) or {"returncode": 0},
+        )
+
+        scheduler.run_once()
+
+        assert len(notifications) == 1
+        assert hermes_calls == []
+
+
+def test_safe_run_url_does_not_raise_for_malformed_run_path() -> None:
+    assert safe_run_url("entity/project/run") == "https://wandb.ai/entity/project/runs/run"
+    assert safe_run_url("not-a-run-path") is None
+
+
+def test_run_from_config_launches_tmux_before_waiting_for_wandb_file(tmp_path: Path) -> None:
+    from babysitter_hermes.scheduler import run_from_config
+
+    script = tmp_path / "train.sh"
+    script.write_text("echo train\n")
+    config_path = tmp_path / "config.yaml"
+    config_path.write_text(
+        f"""
+project_id: demo
+workdir: ./runs
+run:
+  wandb_run_file: ./wandb_run.txt
+  launch:
+    enabled: true
+    backend: tmux
+    session_name: demo
+    script_path: {script}
+"""
+    )
+    order = []
+
+    with patch("babysitter_hermes.scheduler.launch_training_tmux") as launch:
+        with patch("babysitter_hermes.scheduler.wait_for_wandb_run_file") as wait:
+            with patch("babysitter_hermes.scheduler.BabysitterScheduler.run_forever"):
+                launch.side_effect = lambda **kwargs: order.append("launch")
+                wait.side_effect = lambda *args, **kwargs: order.append("wait") or "entity/project/run"
+                run_from_config(config_path)
+
+    assert order[:2] == ["launch", "wait"]
+
+
+def test_run_from_config_does_not_launch_when_launch_disabled(tmp_path: Path) -> None:
+    from babysitter_hermes.scheduler import run_from_config
+
+    script = tmp_path / "train.sh"
+    script.write_text("echo train\n")
+    config_path = tmp_path / "config.yaml"
+    config_path.write_text(
+        f"""
+project_id: demo
+workdir: ./runs
+run:
+  wandb_run: entity/project/run
+  launch:
+    enabled: false
+    backend: tmux
+    session_name: demo
+    script_path: {script}
+"""
+    )
+
+    with patch("babysitter_hermes.scheduler.launch_training_tmux") as launch:
+        with patch("babysitter_hermes.scheduler.BabysitterScheduler.run_forever"):
+            run_from_config(config_path)
+
+    launch.assert_not_called()
 
 
 def test_configured_hermes_dispatch_runs_hermes_with_babysitter_prompt(tmp_path: Path) -> None:

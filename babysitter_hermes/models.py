@@ -14,6 +14,14 @@ class Severity(str, Enum):
     CRITICAL = "critical"
 
 
+class TriageStatus(str, Enum):
+    HEALTHY = "healthy"
+    SUSPICIOUS = "suspicious"
+    NEEDS_ACTION = "needs_action"
+    ERROR = "error"
+    UNKNOWN = "unknown"
+
+
 SEVERITY_ORDER: dict[Severity, int] = {
     Severity.INFO: 0,
     Severity.WARNING: 1,
@@ -40,6 +48,20 @@ class RunSnapshot(BaseModel):
     system_rows: list[dict[str, Any]] = Field(default_factory=list)
     aligned_system_rows: list[dict[str, Any]] = Field(default_factory=list)
     coverage: MetricCoverage = Field(default_factory=MetricCoverage)
+
+
+class ClaudeTriageDecision(BaseModel):
+    status: TriageStatus
+    needs_action: bool = False
+    confidence: float = Field(default=0.0, ge=0.0, le=1.0)
+    summary: str
+    reasoning: str = ""
+    signals: list[str] = Field(default_factory=list)
+    evidence_paths: list[str] = Field(default_factory=list)
+    questions_for_user: list[str] = Field(default_factory=list)
+    model_id: str | None = None
+    prompt_version: str = "triage-v1"
+    created_at: datetime = Field(default_factory=datetime.now)
 
 
 class RenderedArtifacts(BaseModel):

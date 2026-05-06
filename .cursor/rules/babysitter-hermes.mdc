@@ -6,11 +6,14 @@ alwaysApply: true
 # Babysitter Hermes Context
 
 - This repo is standalone. Do not assume it lives inside `optimus_training`.
-- Hermes owns reasoning and subagent delegation; Python exposes deterministic tools and a cheap W&B polling scheduler.
+- Python owns tmux launch, W&B polling, evidence collection, Claude triage, and deterministic gating.
+- Hermes owns deep reasoning and subagent delegation only after Claude triage says `needs_action`.
 - Preserve the default Hermes model as `anthropic/claude-opus-4-7` unless the user explicitly changes it.
 - Do not add OpenAI/OpenRouter requirements to the default setup path.
 - Never skip datapoints or silently ignore malformed data. Ask the user what to do.
 - Do not mutate training code, configs, data, launch settings, or live training state without explicit user approval.
+- Launch training only by wrapping the configured bash script in tmux; do not make Hermes launch jobs.
+- Healthy triage sends no message; every non-healthy triage sends or saves a user message.
 - Tool handlers should return JSON payloads for both success and failure.
 - Write-capable tools must keep outputs inside the configured artifact directory.
 - Use `./setup_babysitter_hermes.sh` for fresh machine setup.

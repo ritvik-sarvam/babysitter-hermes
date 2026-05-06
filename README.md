@@ -1,14 +1,13 @@
 # Babysitter Hermes
 
-`babysitter-hermes` is a Hermes-native training babysitter. A small scheduler polls
-Weights & Biases for cheap run status, then dispatches Hermes at configured step
-intervals or terminal states. Hermes owns the agentic loop and uses the
-`babysitter_*` tools to gather metrics, graphs, KB evidence, logs, code context,
-data context, and Slack-ready user messages.
+`babysitter-hermes` is a training babysitter with a cheap deterministic monitor
+and Hermes escalation. It can launch a user-provided training bash script in a
+tmux session, poll Weights & Biases, gather W&B/log/graph evidence, run a simple
+Claude triage, and dispatch Hermes only when the triage says deeper agentic
+analysis is needed.
 
-The first version monitors existing W&B runs. Training launch can be added later
-as another Hermes tool so the agent can reason about launch and status in the
-same loop.
+Hermes does not launch training in this flow. Python owns launch and polling;
+Hermes owns incident response.
 
 ## Current Status
 
@@ -29,14 +28,17 @@ if you intentionally want a different Claude model.
 
 The scheduler is deliberately small and non-agentic:
 
-1. Resolve a W&B run from `run.wandb_run` or `run.wandb_run_file`.
-2. Poll cheap W&B status: latest step and terminal state.
-3. Dispatch Hermes only when `monitor_every_steps` is reached or the run is terminal.
-4. Persist interval artifacts and Hermes output under `workdir`.
+1. Optionally launch the user-provided training script in a detached tmux session.
+2. Resolve a W&B run from `run.wandb_run` or `run.wandb_run_file`.
+3. Poll cheap W&B status: latest step and terminal state.
+4. Fetch W&B history, render graphs, read configured logs, and run Claude triage.
+5. Send a message for any non-healthy triage result.
+6. Dispatch Hermes only when Claude triage says `needs_action`.
+7. Persist launch, evidence, triage, notification, and Hermes artifacts under `workdir`.
 
-Hermes is responsible for reasoning. The scheduler prompt tells Hermes to use the
-`babysitter_*` tools and delegate specialist subagents for graphs, KB, runtime
-logs, code, data, config, and fix strategy.
+Claude triage is responsible for the cheap first pass. Hermes is the escalation
+agent for incidents that need deeper agentic analysis with `babysitter_*` tools
+and specialist subagents.
 
 Important package areas:
 
@@ -103,12 +105,21 @@ hermes:
 run:
   wandb_run: entity/project/run_id
   training_code_dir: ./training-code
+  launch:
+    enabled: true
+    backend: tmux
+    session_name: training-run
+    working_dir: ./training-code
+    script_path: ./training-code/run_training.sh
   kb_roots:
     - ./kb
   log_paths:
     - ./logs
   data_paths:
     - ./data
+triage:
+  enabled: true
+  model: anthropic/claude-opus-4-7
 ```
 
 Then start the scheduler:
@@ -135,6 +146,7 @@ Logs are also written into the configured `workdir`:
 
 ```text
 babysitter_hermes_runs/<project_id>/0_scheduler_logs/scheduler.log
+babysitter_hermes_runs/<project_id>/0_training_launch/launch_record.json
 babysitter_hermes_runs/<project_id>/runs/<run>/intervals/<interval>/7_final_synthesis/hermes_logs/
 babysitter_hermes_runs/<project_id>/runs/<run>/intervals/<interval>/7_final_synthesis/hermes_stream/
 ```
@@ -152,6 +164,13 @@ Babysitter Hermes invokes Hermes in non-interactive chat mode:
 ```bash
 hermes chat --model <model> --toolsets <toolsets> -q "<scheduler prompt>"
 ```
+
+Claude triage notification policy:
+
+- `healthy`: no user message and no Hermes escalation.
+- `suspicious`: save/send a concise message with evidence and questions.
+- `needs_action`: save/send a message, then invoke Hermes.
+- `error` or `unknown`: save/send a message; do not silently ignore missing evidence.
 
 The package is self-contained; it does not require being cloned inside the old
 `optimus_training` monorepo.

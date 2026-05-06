@@ -63,11 +63,15 @@ def fetch_run_snapshot(run_path: str) -> RunSnapshot:
 
     run = wandb.Api().run(run_path)
     training_rows = list(run.scan_history(page_size=1000))
+    system_warning = None
     try:
         system_rows = list(run.history(stream="system", pandas=False))
-    except Exception:
+    except Exception as exc:
         system_rows = []
+        system_warning = f"W&B system history fetch failed: {type(exc).__name__}: {exc}"
     coverage = build_coverage(training_rows, system_rows)
+    if system_warning:
+        coverage.warnings.append(system_warning)
     return RunSnapshot(
         run_path=run_path,
         run_url=run_url_from_path(run_path),
